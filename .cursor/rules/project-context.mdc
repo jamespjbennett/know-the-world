@@ -1,0 +1,43 @@
+---
+description: Know The World product context and architecture — read before implementing features
+alwaysApply: true
+---
+
+# Know The World — Project Context
+
+Rails 8.1 full-stack app: **topic fitness tracker** for understanding. Users follow topics, read AI-generated digests, take MCQ quizzes, and track a 0–100 fitness score + streak over time. News/web content feeds fresh material into topics — this is NOT a daily headlines quiz app.
+
+**Full spec:** `docs/PRD.md`
+
+## Core loop
+
+Follow topic → Read digest → Take quiz → Fitness score up → Repeat
+
+## Key v1 decisions
+
+- Hybrid topics: ~15 curated seeds + custom LLM topics
+- Digest + quiz (not quiz-only); MCQ with 4 options
+- User picks daily/weekly cadence per topic; max 3 topics
+- Onboarding: topic + cadence + knowledge level + free-text goal
+- Instant first digest via `GenerateDigestJob`; cron for subsequent
+- ~30% spaced-repetition questions in each quiz
+- In-app only (no email/push in v1)
+- Rails 8 auth; parallel `/api/v1/` JSON API for future mobile
+
+## Architecture conventions
+
+- Business logic in `app/services/` — shared by HTML and API controllers
+- Hotwire (Turbo + Stimulus) for web UI; no React
+- Solid Queue for jobs (`GenerateDigestJob`, `DailyGenerationJob`)
+- Web search API → LLM synthesis for digest + question generation
+- Do NOT add v2 features (notifications, badges, free-text grading, lesson paths) unless asked
+
+## Implementation status
+
+Phase 1 in progress. Domain models and migrations created; auth controllers/views not yet generated. Run `bin/rails db:create db:migrate` when PostgreSQL is available.
+
+## When building
+
+1. Check `docs/PRD.md` for full requirements before adding features
+2. Match existing Rails 8 stack (Solid Queue/Cache/Cable, Kamal, Propshaft)
+3. Keep web controllers and `api/v1/` controllers thin; delegate to services
