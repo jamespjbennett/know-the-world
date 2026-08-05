@@ -4,7 +4,7 @@ class TopicSubscription < ApplicationRecord
   belongs_to :user
   belongs_to :topic
 
-  has_many :digests, dependent: :destroy
+  has_many :digests, class_name: "TopicDigest", dependent: :destroy
   has_many :questions, dependent: :destroy
   has_many :fitness_snapshots, dependent: :destroy
 

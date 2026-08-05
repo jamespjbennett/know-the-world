@@ -2,7 +2,7 @@ class Question < ApplicationRecord
   OPTION_COUNT = 4
 
   belongs_to :topic_subscription
-  belongs_to :digest, optional: true
+  belongs_to :digest, class_name: "TopicDigest", optional: true
 
   has_many :quiz_questions, dependent: :destroy
   has_many :quizzes, through: :quiz_questions

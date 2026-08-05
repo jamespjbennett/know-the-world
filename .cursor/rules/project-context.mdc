@@ -7,7 +7,8 @@ alwaysApply: true
 
 Rails 8.1 full-stack app: **topic fitness tracker** for understanding. Users follow topics, read AI-generated digests, take MCQ quizzes, and track a 0–100 fitness score + streak over time. News/web content feeds fresh material into topics — this is NOT a daily headlines quiz app.
 
-**Full spec:** `docs/PRD.md`
+**Full spec:** `docs/PRD.md`  
+**Domain behaviour (plain English):** `docs/domains/`
 
 ## Core loop
 

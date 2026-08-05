@@ -1,5 +1,5 @@
 class Quiz < ApplicationRecord
-  belongs_to :digest
+  belongs_to :digest, class_name: "TopicDigest"
 
   has_many :quiz_questions, -> { order(:position) }, dependent: :destroy
   has_many :questions, through: :quiz_questions

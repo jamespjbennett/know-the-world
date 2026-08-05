@@ -1,8 +1,10 @@
-class Digest < ApplicationRecord
+class TopicDigest < ApplicationRecord
+  self.table_name = "digests"
+
   belongs_to :topic_subscription
 
-  has_one :quiz, dependent: :destroy
-  has_many :questions, dependent: :nullify
+  has_one :quiz, dependent: :destroy, foreign_key: :digest_id
+  has_many :questions, dependent: :nullify, foreign_key: :digest_id
 
   enum :status, {
     pending: "pending",
