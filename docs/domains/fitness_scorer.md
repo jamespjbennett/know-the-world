@@ -1,6 +1,7 @@
 # Fitness Scorer
 
-> **Status:** Specified and tested, not yet built.  
+> **Status:** Implemented.  
+> **Code:** `app/services/fitness_scorer/`  
 > **Technical tests:** `test/services/fitness_scorer_test.rb`
 
 ---
@@ -137,7 +138,7 @@ It also drives behaviour we want:
 - It doesn't compare you to other users (no leaderboards)
 - It doesn't drop your score for missing a day — your streak might reset elsewhere, but consistency reflects your current streak length, not guilt-tripping
 - It doesn't score you for reading the digest — only for completing quizzes
-- It isn't implemented yet — the rules above are what we're building toward, and the tests make sure we get it right
+- It isn't fully wired into the app UI yet — the scoring logic is built and tested, but nothing updates your dashboard automatically after a quiz until we hook that up
 
 ---
 

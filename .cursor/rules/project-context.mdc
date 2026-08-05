@@ -35,7 +35,7 @@ Follow topic → Read digest → Take quiz → Fitness score up → Repeat
 
 ## Implementation status
 
-Phase 1 in progress. Domain models and migrations created; auth controllers/views not yet generated. Run `bin/rails db:create db:migrate` when PostgreSQL is available.
+Phase 1 in progress. Domain models migrated; `FitnessScorer` implemented and tested. Auth and UI not yet built.
 
 ## When building
 
