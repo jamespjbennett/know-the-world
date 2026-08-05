@@ -33,7 +33,7 @@ class FitnessScenarioBuilder
   # Creates a completed quiz with optional review/new-material attempts.
   #
   # score:           integer 0-100 stored on the quiz (drives accuracy component)
-  # review:          { correct:, total: } spaced-repetition questions attempted
+  # review:          { correct:, total: } review questions attempted
   # new_material:    { correct:, total: } new digest questions attempted
   # completed_at:    timestamp for ordering when testing rolling windows
   #

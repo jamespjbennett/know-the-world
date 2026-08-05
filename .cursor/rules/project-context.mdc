@@ -8,7 +8,8 @@ alwaysApply: true
 Rails 8.1 full-stack app: **topic fitness tracker** for understanding. Users follow topics, read AI-generated digests, take MCQ quizzes, and track a 0–100 fitness score + streak over time. News/web content feeds fresh material into topics — this is NOT a daily headlines quiz app.
 
 **Full spec:** `docs/PRD.md`  
-**Domain behaviour (plain English):** `docs/domains/`
+**Domain behaviour (plain English):** `docs/domains/`  
+**Tech debt & scaling:** `docs/TECH_DEBT.md`
 
 ## Core loop
 
@@ -21,7 +22,7 @@ Follow topic → Read digest → Take quiz → Fitness score up → Repeat
 - User picks daily/weekly cadence per topic; max 3 topics
 - Onboarding: topic + cadence + knowledge level + free-text goal
 - Instant first digest via `GenerateDigestJob`; cron for subsequent
-- ~30% spaced-repetition questions in each quiz
+- ~30% review questions in each quiz (via `ReviewQuestionPicker`)
 - In-app only (no email/push in v1)
 - Rails 8 auth; parallel `/api/v1/` JSON API for future mobile
 
@@ -35,10 +36,11 @@ Follow topic → Read digest → Take quiz → Fitness score up → Repeat
 
 ## Implementation status
 
-Phase 1 in progress. Domain models migrated; `FitnessScorer` implemented and tested. Auth and UI not yet built.
+Phase 1 in progress. Domain models migrated; `FitnessScorer` and `ReviewQuestionPicker` implemented and tested. Auth and UI not yet built.
 
 ## When building
 
 1. Check `docs/PRD.md` for full requirements before adding features
 2. Match existing Rails 8 stack (Solid Queue/Cache/Cable, Kamal, Propshaft)
 3. Keep web controllers and `api/v1/` controllers thin; delegate to services
+4. **Tech debt:** When you find a scaling issue, N+1, or deferred optimisation, add it to `docs/TECH_DEBT.md` in the same session — do not leave it only in chat or comments

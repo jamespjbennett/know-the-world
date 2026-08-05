@@ -145,4 +145,4 @@ It also drives behaviour we want:
 ## Related docs
 
 - [Product overview (PRD)](../PRD.md) — full app spec
-- Review questions and spaced repetition — documented separately when we build `SpacedRepetitionSelector`
+- Review questions and spaced repetition — see [Review Question Picker](review_question_picker.md)

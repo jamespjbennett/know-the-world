@@ -21,7 +21,7 @@
 | Fitness model | 0–100 Topic Fitness Score + streak + trend chart |
 | Onboarding depth | Topic + cadence + knowledge level + free-text goal |
 | Content pipeline | Web search API → LLM synthesis → digest + questions |
-| Spaced repetition | ~30% of each quiz revisits prior material |
+| Review mix | ~30% of each quiz revisits prior material via `ReviewQuestionPicker` |
 | Auth | Rails 8 built-in authentication (email/password) |
 | API | Parallel `/api/v1/` namespace, shared service layer |
 | Question format | MCQ only (4 options + explanation) |
@@ -53,7 +53,7 @@ Initial user: building this as a modern Rails practice app while dogfooding the 
 
 1. Open app → dashboard shows topics with today's/this week's status
 2. Tap topic → read digest (with source links)
-3. Start quiz → 5–10 MCQs (~70% from today's digest, ~30% spaced repetition)
+3. Start quiz → 5–10 MCQs (~70% from today's digest, ~30% review questions)
 4. See results + explanations → fitness score updates, streak increments
 5. Trend chart shows score history per topic
 
@@ -73,7 +73,7 @@ Same as onboarding steps 2–5 for an additional topic. Block at 3 with clear me
 - **Topic subscriptions**: `cadence`, `knowledge_level`, `goal`, `fitness_score`, `streak_count`
 - **Digest generation**: Web search → LLM briefing with source URLs
 - **Quiz generation**: MCQ bank tagged by topic, date, and user performance
-- **Spaced repetition**: ~30% review questions selected from prior question bank
+- **Review questions**: ~30% of each quiz selected by `ReviewQuestionPicker` from prior question bank
 - **Fitness scoring**: Composite score (accuracy + consistency + retention weights)
 - **Dashboard**: Topic cards showing digest status, score, streak
 - **Cron scheduling**: Daily Solid Queue recurring job; generates only for topics due that day
@@ -102,7 +102,7 @@ Same as onboarding steps 2–5 for an additional topic. Block at 3 with clear me
 - `TopicSubscription` — join between User and Topic with personalization fields
 - `Digest` — one per subscription per period (day or week)
 - `Quiz` — belongs to Digest; assembled from new + review questions
-- `Question` — MCQ bank; `review_question` flag for spaced repetition pool
+- `Question` — MCQ bank per subscription; review flag lives on `quiz_questions`
 - `QuestionAttempt` — per-user answer tracking for scoring and repetition scheduling
 - `FitnessSnapshot` — daily score snapshot for trend charts
 
@@ -116,8 +116,8 @@ Same as onboarding steps 2–5 for an additional topic. Block at 3 with clear me
 2. Call web search API (Brave Search or Tavily)
 3. LLM: synthesize digest from results, cite sources, calibrate to knowledge level
 4. LLM: generate 7–10 new MCQs from digest content
-5. `QuizAssembler` picks ~30% review questions from user's question bank
-6. Save digest, quiz, questions; update subscription `last_activity_at`
+5. `ReviewQuestionPicker` selects review questions from the user's question bank
+6. `QuizAssembler` combines new and review questions; save digest, quiz, questions; update subscription `last_activity_at`
 
 **Job: `DailyGenerationJob`** (Solid Queue recurring, runs daily ~5am)
 
@@ -127,9 +127,9 @@ Same as onboarding steps 2–5 for an additional topic. Block at 3 with clear me
 **Services (shared by web + API):**
 
 - `DigestGenerator` — orchestrates search + LLM + save
+- `ReviewQuestionPicker` — picks review questions from bank
 - `QuizAssembler` — mixes new + review questions
 - `FitnessScorer` — recalculates score after quiz completion
-- `SpacedRepetitionSelector` — picks review questions from bank
 
 ---
 
@@ -137,7 +137,7 @@ Same as onboarding steps 2–5 for an additional topic. Block at 3 with clear me
 
 - **Accuracy** (50%): rolling average of last 10 quiz scores
 - **Consistency** (30%): streak length vs. expected cadence
-- **Retention** (20%): accuracy on review/spaced-repetition questions
+- **Retention** (20%): accuracy on review questions
 
 Score range: 0–100. Snapshot stored daily for trend chart.
 
@@ -169,9 +169,9 @@ app/controllers/
   api/v1/...
 app/services/
   digest_generator.rb
+  review_question_picker.rb
   quiz_assembler.rb
   fitness_scorer.rb
-  spaced_repetition_selector.rb
   llm/client.rb
   search/client.rb
 app/jobs/
@@ -201,7 +201,7 @@ Climate Tech, Artificial Intelligence, UK Politics, US Politics, Environment & S
 
 1. **Foundation** — Auth, models, migrations, seeds, dashboard skeleton
 2. **Content pipeline** — Search + LLM services, `GenerateDigestJob`, instant first digest
-3. **Quiz + fitness** — Quiz UI (Turbo), spaced repetition, fitness scoring, trend chart
+3. **Quiz + fitness** — Quiz UI, review question picking, fitness scoring, trend chart
 4. **Cron + polish** — `DailyGenerationJob`, onboarding wizard, topic limit enforcement
 5. **API layer** — `/api/v1/` controllers, token auth, request specs
 
