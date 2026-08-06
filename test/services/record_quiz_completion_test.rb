@@ -133,11 +133,41 @@ class RecordQuizCompletionTest < ActiveSupport::TestCase
   end
 
   test "raises when quiz is already completed" do
-    subscription = @builder.subscription
+    subscription = @builder.subscription(streak_count: 2)
     quiz = @builder.completed_quiz(subscription, score: 80, new_material: { correct: 1, total: 1 })
 
     assert_raises(RecordQuizCompletion::AlreadyCompleted) do
       RecordQuizCompletion.call(quiz: quiz, user: @builder.user)
+    end
+
+    assert_equal 2, subscription.reload.streak_count
+  end
+
+  test "raises when quiz is still pending" do
+    subscription = @builder.subscription
+    quiz = @builder.pending_quiz_with_attempts(
+      subscription,
+      questions: [ { answered_correctly: true } ]
+    )
+
+    assert_raises(RecordQuizCompletion::NotInProgress) do
+      RecordQuizCompletion.call(quiz: quiz, user: @builder.user)
+    end
+  end
+
+  test "raises when a different user tries to complete the quiz" do
+    subscription = @builder.subscription
+    quiz = @builder.in_progress_quiz(
+      subscription,
+      questions: [ { answered_correctly: true } ]
+    )
+    stranger = User.create!(
+      email_address: "stranger-#{SecureRandom.hex(4)}@example.com",
+      password: "password"
+    )
+
+    assert_raises(RecordQuizCompletion::Forbidden) do
+      RecordQuizCompletion.call(quiz: quiz, user: stranger)
     end
   end
 
@@ -152,6 +182,31 @@ class RecordQuizCompletionTest < ActiveSupport::TestCase
     assert_raises(RecordQuizCompletion::IncompleteAttempts) do
       RecordQuizCompletion.call(quiz: quiz, user: @builder.user)
     end
+  end
+
+  test "only increments streak once when two completions race" do
+    subscription = @builder.subscription(streak_count: 4)
+    quiz = @builder.in_progress_quiz(
+      subscription,
+      questions: [ { answered_correctly: true } ]
+    )
+    quiz_id = quiz.id
+    user = @builder.user
+
+    outcomes = Array.new(2) do
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          RecordQuizCompletion.call(quiz: Quiz.find(quiz_id), user: user)
+          :completed
+        rescue RecordQuizCompletion::AlreadyCompleted
+          :already_completed
+        end
+      end
+    end.map(&:value)
+
+    assert_includes outcomes, :completed
+    assert_includes outcomes, :already_completed
+    assert_equal 5, subscription.reload.streak_count
   end
 
   test "includes review question attempts in fitness retention" do

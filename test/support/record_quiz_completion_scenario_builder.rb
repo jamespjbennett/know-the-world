@@ -40,6 +40,12 @@ class RecordQuizCompletionScenarioBuilder < FitnessScenarioBuilder
     question
   end
 
+  def pending_quiz_with_attempts(subscription, questions:, published_on: Date.current)
+    quiz = in_progress_quiz(subscription, questions: questions, published_on: published_on)
+    quiz.update!(status: :pending)
+    quiz
+  end
+
   private
 
   def add_question_with_attempt(quiz:, answered_correctly:, review:)

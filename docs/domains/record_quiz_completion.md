@@ -1,7 +1,7 @@
 # Record Quiz Completion
 
 > **Status:** Implemented.  
-> **Code:** `app/services/record_quiz_completion/`  
+> **Code:** `app/services/record_quiz_completion.rb`, `app/services/record_quiz_completion/`  
 > **Technical tests:** `test/services/record_quiz_completion_test.rb`
 
 ---
@@ -51,7 +51,9 @@ You finish a 4-question quiz on Climate Tech, getting 2 right.
 
 | Situation | What happens |
 |---|---|
-| Quiz already completed | Raises `AlreadyCompleted` — can't submit twice |
+| Quiz already completed | Raises `AlreadyCompleted` — can't submit twice (also protected if two submits hit at once) |
+| Quiz not started yet | Raises `NotInProgress` — must be in progress before submitting |
+| Wrong person | Raises `Forbidden` — only the topic follower can complete their quiz |
 | Unanswered questions | Raises `IncompleteAttempts` — must answer all before submitting |
 
 ---
