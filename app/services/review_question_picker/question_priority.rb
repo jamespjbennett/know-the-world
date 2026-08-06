@@ -16,10 +16,15 @@ class ReviewQuestionPicker
     end
 
     def latest_attempt_for(question)
-      QuestionAttempt
-        .where(user_id: @subscription.user_id, question_id: question.id)
-        .order(created_at: :desc)
-        .first
+      completed_attempts_for(question).order(created_at: :desc).first
+    end
+
+    def completed_attempts_for(question)
+      QuestionAttempt.joins(:quiz).merge(Quiz.completed).where(attempt_scope(question))
+    end
+
+    def attempt_scope(question)
+      { user_id: @subscription.user_id, question_id: question.id }
     end
   end
 end

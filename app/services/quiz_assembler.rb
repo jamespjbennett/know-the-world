@@ -1,23 +1,47 @@
 class QuizAssembler
   REVIEW_RATIO = 0.3
 
-  def self.call(quiz:, subscription:, new_questions:, quiz_size:)
-    new(quiz, subscription, new_questions, quiz_size).call
+  def self.call(quiz:, new_questions:, quiz_size:)
+    new(quiz, new_questions, quiz_size).call
   end
 
-  def initialize(quiz, subscription, new_questions, quiz_size)
+  def initialize(quiz, new_questions, quiz_size)
     @quiz = quiz
-    @subscription = subscription
     @new_questions = new_questions
     @quiz_size = quiz_size
   end
 
   def call
+    validate!
+    assemble_unless_present
+  end
+
+  private
+
+  def validate!
+    raise ArgumentError, "duplicate new questions" if duplicate_new_questions?
+    raise ArgumentError, "new questions must belong to quiz subscription" if foreign_new_questions?
+  end
+
+  def assemble_unless_present
+    return @quiz if already_assembled?
+
     create_quiz_questions
     @quiz.reload
   end
 
-  private
+  def already_assembled?
+    @quiz.quiz_questions.exists?
+  end
+
+  def duplicate_new_questions?
+    ids = @new_questions.map(&:id)
+    ids.size != ids.uniq.size
+  end
+
+  def foreign_new_questions?
+    @new_questions.any? { |question| question.topic_subscription_id != subscription.id }
+  end
 
   def create_quiz_questions
     Quiz.transaction { slots.each_with_index { |slot, index| create_slot(slot, index) } }
@@ -49,7 +73,7 @@ class QuizAssembler
 
   def review_questions
     @review_questions ||= ReviewQuestionPicker.call(
-      @subscription,
+      subscription,
       count: review_slot_count,
       excluding: @new_questions.map(&:id)
     )
@@ -57,5 +81,9 @@ class QuizAssembler
 
   def review_slot_count
     ReviewSlotCount.for(@quiz_size)
+  end
+
+  def subscription
+    @quiz.topic_subscription
   end
 end

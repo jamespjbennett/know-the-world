@@ -131,6 +131,29 @@ class ReviewQuestionPickerTest < ActiveSupport::TestCase
     assert_equal [ still_wrong ], questions
   end
 
+  test "ignores attempts from incomplete quizzes when ranking priority" do
+    subscription = @builder.subscription
+    historically_correct, historically_wrong = @builder.past_quiz_with_questions(
+      subscription,
+      questions: [
+        { answered_correctly: true },
+        { answered_correctly: false }
+      ],
+      completed_at: 3.days.ago
+    )
+    @builder.in_progress_attempt(
+      subscription,
+      historically_wrong,
+      answered_correctly: true,
+      attempted_at: Time.current
+    )
+
+    questions = ReviewQuestionPicker.call(subscription, count: 1)
+
+    assert_equal [ historically_wrong ], questions
+    refute_equal historically_correct, questions.first
+  end
+
   test "prefers a question whose latest attempt is wrong even if earlier attempt was correct" do
     subscription = @builder.subscription
     previously_correct, always_correct = @builder.past_quiz_with_questions(

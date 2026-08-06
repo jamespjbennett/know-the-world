@@ -1,7 +1,7 @@
 # Quiz Assembler
 
 > **Status:** Implemented.  
-> **Code:** `app/services/quiz_assembler/`  
+> **Code:** `app/services/quiz_assembler.rb`, `app/services/quiz_assembler/`  
 > **Technical tests:** `test/services/quiz_assembler_test.rb`
 
 ---

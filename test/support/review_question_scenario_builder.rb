@@ -89,6 +89,27 @@ class ReviewQuestionScenarioBuilder
     question
   end
 
+  # Records an attempt on an in-progress quiz (must not affect review priority).
+  def in_progress_attempt(subscription, question, answered_correctly:, attempted_at: Time.current)
+    digest = subscription.digests.create!(
+      published_on: attempted_at.to_date,
+      status: :ready,
+      content: "Digest content",
+      sources: []
+    )
+
+    quiz = digest.create_quiz!(status: :in_progress)
+    quiz.quiz_questions.create!(question: question, position: 1, review: true)
+    quiz.question_attempts.create!(
+      user: @user,
+      question: question,
+      selected_index: answered_correctly ? 0 : 1,
+      created_at: attempted_at
+    )
+
+    question
+  end
+
   private
 
   def unique_email

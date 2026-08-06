@@ -3,10 +3,10 @@ require "test_helper"
 # QuizAssembler specification
 #
 # Public interface:
-#   QuizAssembler.call(quiz:, subscription:, new_questions:, quiz_size:)
+#   QuizAssembler.call(quiz:, new_questions:, quiz_size:)
 #
 # Creates QuizQuestion rows on the quiz: new material first, then review (~30%).
-# Returns the quiz with ordered quiz_questions loaded.
+# Subscription is derived from the quiz. Returns the quiz (idempotent on retry).
 #
 class QuizAssemblerTest < ActiveSupport::TestCase
   setup do
@@ -23,12 +23,7 @@ class QuizAssemblerTest < ActiveSupport::TestCase
     quiz = @builder.pending_quiz(subscription)
     new_questions = @builder.new_questions_for(subscription, digest: quiz.digest, count: 10)
 
-    result = QuizAssembler.call(
-      quiz: quiz,
-      subscription: subscription,
-      new_questions: new_questions,
-      quiz_size: 10
-    )
+    result = QuizAssembler.call(quiz: quiz, new_questions: new_questions, quiz_size: 10)
 
     assert_equal 10, result.quiz_questions.count
     assert_equal 3, result.quiz_questions.review.count
@@ -40,12 +35,7 @@ class QuizAssemblerTest < ActiveSupport::TestCase
     quiz = @builder.pending_quiz(subscription)
     new_questions = @builder.new_questions_for(subscription, digest: quiz.digest, count: 5)
 
-    result = QuizAssembler.call(
-      quiz: quiz,
-      subscription: subscription,
-      new_questions: new_questions,
-      quiz_size: 5
-    )
+    result = QuizAssembler.call(quiz: quiz, new_questions: new_questions, quiz_size: 5)
 
     assert_equal 5, result.quiz_questions.count
     assert_equal 0, result.quiz_questions.review.count
@@ -57,12 +47,7 @@ class QuizAssemblerTest < ActiveSupport::TestCase
     quiz = @builder.pending_quiz(subscription)
     new_questions = @builder.new_questions_for(subscription, digest: quiz.digest, count: 3)
 
-    result = QuizAssembler.call(
-      quiz: quiz,
-      subscription: subscription,
-      new_questions: new_questions,
-      quiz_size: 3
-    )
+    result = QuizAssembler.call(quiz: quiz, new_questions: new_questions, quiz_size: 3)
 
     assert_equal [ 1, 2, 3 ], result.quiz_questions.pluck(:position)
   end
@@ -77,12 +62,7 @@ class QuizAssemblerTest < ActiveSupport::TestCase
     quiz = @builder.pending_quiz(subscription)
     new_questions = @builder.new_questions_for(subscription, digest: quiz.digest, count: 5)
 
-    result = QuizAssembler.call(
-      quiz: quiz,
-      subscription: subscription,
-      new_questions: new_questions,
-      quiz_size: 5
-    )
+    result = QuizAssembler.call(quiz: quiz, new_questions: new_questions, quiz_size: 5)
 
     new_count = result.quiz_questions.new_material.count
     review_positions = result.quiz_questions.review.pluck(:position)
@@ -102,12 +82,7 @@ class QuizAssemblerTest < ActiveSupport::TestCase
     quiz = @builder.pending_quiz(subscription)
     new_questions = @builder.new_questions_for(subscription, digest: quiz.digest, count: 2)
 
-    result = QuizAssembler.call(
-      quiz: quiz,
-      subscription: subscription,
-      new_questions: new_questions,
-      quiz_size: 2
-    )
+    result = QuizAssembler.call(quiz: quiz, new_questions: new_questions, quiz_size: 2)
 
     review_ids = result.quiz_questions.review.pluck(:question_id)
     new_ids = new_questions.map(&:id)
@@ -120,12 +95,7 @@ class QuizAssemblerTest < ActiveSupport::TestCase
     quiz = @builder.pending_quiz(subscription)
     new_questions = @builder.new_questions_for(subscription, digest: quiz.digest, count: 3)
 
-    result = QuizAssembler.call(
-      quiz: quiz,
-      subscription: subscription,
-      new_questions: new_questions,
-      quiz_size: 10
-    )
+    result = QuizAssembler.call(quiz: quiz, new_questions: new_questions, quiz_size: 10)
 
     assert_equal 3, result.quiz_questions.count
   end
@@ -140,15 +110,69 @@ class QuizAssemblerTest < ActiveSupport::TestCase
     quiz = @builder.pending_quiz(subscription)
     new_questions = @builder.new_questions_for(subscription, digest: quiz.digest, count: 10)
 
-    result = QuizAssembler.call(
-      quiz: quiz,
-      subscription: subscription,
-      new_questions: new_questions,
-      quiz_size: 10
-    )
+    result = QuizAssembler.call(quiz: quiz, new_questions: new_questions, quiz_size: 10)
 
     assert_equal 10, result.quiz_questions.count
     assert_equal 1, result.quiz_questions.review.count
     assert_equal 9, result.quiz_questions.new_material.count
+  end
+
+  test "assembles review-only quiz when new questions are empty" do
+    subscription = @builder.subscription
+    @builder.past_quiz_with_questions(
+      subscription,
+      questions: Array.new(5) { { answered_correctly: true } }
+    )
+
+    quiz = @builder.pending_quiz(subscription)
+
+    result = QuizAssembler.call(quiz: quiz, new_questions: [], quiz_size: 10)
+
+    assert_equal 3, result.quiz_questions.count
+    assert_equal 3, result.quiz_questions.review.count
+    assert_equal 0, result.quiz_questions.new_material.count
+  end
+
+  test "is idempotent when called again on an assembled quiz" do
+    subscription = @builder.subscription
+    quiz = @builder.pending_quiz(subscription)
+    new_questions = @builder.new_questions_for(subscription, digest: quiz.digest, count: 3)
+
+    first = QuizAssembler.call(quiz: quiz, new_questions: new_questions, quiz_size: 3)
+    second = QuizAssembler.call(quiz: quiz, new_questions: new_questions, quiz_size: 3)
+
+    assert_equal first.quiz_questions.pluck(:id), second.quiz_questions.pluck(:id)
+    assert_equal 3, second.quiz_questions.count
+  end
+
+  test "rejects new questions from another subscription" do
+    subscription = @builder.subscription
+    other = @builder.subscription
+    quiz = @builder.pending_quiz(subscription)
+    foreign = @builder.new_questions_for(other, digest: @builder.pending_quiz(other).digest, count: 1)
+
+    error = assert_raises(ArgumentError) do
+      QuizAssembler.call(quiz: quiz, new_questions: foreign, quiz_size: 1)
+    end
+
+    assert_match(/subscription/i, error.message)
+  end
+
+  test "rejects duplicate new questions" do
+    subscription = @builder.subscription
+    quiz = @builder.pending_quiz(subscription)
+    question = @builder.new_questions_for(subscription, digest: quiz.digest, count: 1).first
+
+    error = assert_raises(ArgumentError) do
+      QuizAssembler.call(quiz: quiz, new_questions: [ question, question ], quiz_size: 2)
+    end
+
+    assert_match(/duplicate/i, error.message)
+  end
+
+  test "rounds review slots to thirty percent of quiz size" do
+    assert_equal 3, QuizAssembler::ReviewSlotCount.for(10)
+    assert_equal 2, QuizAssembler::ReviewSlotCount.for(5)
+    assert_equal 0, QuizAssembler::ReviewSlotCount.for(1)
   end
 end
