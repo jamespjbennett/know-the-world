@@ -1,6 +1,6 @@
 require "test_helper"
 
-# RecordQuizCompletion specification (implementation not yet written)
+# RecordQuizCompletion specification
 #
 # Public interface:
 #   result = RecordQuizCompletion.call(quiz:, user:)
@@ -84,13 +84,15 @@ class RecordQuizCompletionTest < ActiveSupport::TestCase
 
     first_quiz = @builder.in_progress_quiz(
       subscription,
-      questions: [ { answered_correctly: true }, { answered_correctly: true } ]
+      questions: [ { answered_correctly: true }, { answered_correctly: true } ],
+      published_on: 1.day.ago
     )
     RecordQuizCompletion.call(quiz: first_quiz, user: @builder.user)
 
     second_quiz = @builder.in_progress_quiz(
       subscription,
-      questions: [ { answered_correctly: false } ]
+      questions: [ { answered_correctly: false } ],
+      published_on: Date.current
     )
 
     assert_no_difference -> { subscription.fitness_snapshots.count } do

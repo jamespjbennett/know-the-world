@@ -86,7 +86,7 @@ flowchart LR
 | Step | Component | Status |
 |---|---|---|
 | 1 | `FitnessScorer` — accuracy + consistency + retention | **Built** |
-| 2 | Persist score + snapshot | Planned |
+| 2 | Persist score + snapshot | **Built** (`RecordQuizCompletion`) |
 
 ---
 
@@ -133,7 +133,7 @@ Services are the heart of the app. Each has a single public entry point: `.call(
 | `ReviewQuestionPicker` | Pick review questions from completed quiz history | [review_question_picker.md](domains/review_question_picker.md) | **Built** |
 | `QuizAssembler` | Mix new + review questions (~70/30) | [quiz_assembler.md](domains/quiz_assembler.md) | **Built** |
 | `DigestGenerator` | Search + LLM → digest + new questions | — | Planned |
-| `RecordQuizCompletion` | Score quiz, persist fitness + snapshot | — | Planned |
+| `RecordQuizCompletion` | Score quiz, persist fitness + snapshot | [record_quiz_completion.md](domains/record_quiz_completion.md) | **Built** |
 
 External adapters (planned):
 
@@ -215,8 +215,9 @@ Same services as the web UI — no duplicated business logic.
 - `FitnessScorer` + tests
 - `ReviewQuestionPicker` + tests
 - `QuizAssembler` + tests
+- `RecordQuizCompletion` + tests
 
 **Next**
-- `RecordQuizCompletion` → `DigestGenerator` → jobs → auth + UI
+- `DigestGenerator` → jobs → auth + UI
 
 Update this section as major components land.
