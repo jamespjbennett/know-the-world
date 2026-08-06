@@ -57,7 +57,7 @@ class FitnessScenarioBuilder
     quiz
   end
 
-  def incomplete_quiz(subscription, completed_at: Time.current)
+  def incomplete_quiz(subscription, status: :in_progress, completed_at: Time.current)
     digest = subscription.digests.create!(
       published_on: completed_at.to_date,
       status: :ready,
@@ -65,7 +65,7 @@ class FitnessScenarioBuilder
       sources: []
     )
 
-    digest.create_quiz!(status: :in_progress)
+    digest.create_quiz!(status: status)
   end
 
   private

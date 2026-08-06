@@ -1,6 +1,6 @@
 # Know The World — Product Requirements Document
 
-> Source of truth for product and architecture decisions. For a concise agent summary, see `.cursor/rules/project-context.mdc`.
+> Source of truth for product and architecture decisions. For the high-level system map see [ARCHITECTURE.md](ARCHITECTURE.md). For a concise agent summary, see `.cursor/rules/project-context.mdc`.
 
 ## Vision
 

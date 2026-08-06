@@ -92,6 +92,110 @@ class ReviewQuestionPickerTest < ActiveSupport::TestCase
     assert_equal Set.new([ first_wrong.id, second_wrong.id ]), Set.new(questions.map(&:id))
   end
 
+  test "returns wrong answers before correct answers in priority order" do
+    subscription = @builder.subscription
+    wrong, first_correct, second_correct = @builder.past_quiz_with_questions(
+      subscription,
+      questions: [
+        { answered_correctly: false },
+        { answered_correctly: true },
+        { answered_correctly: true }
+      ]
+    )
+
+    questions = ReviewQuestionPicker.call(subscription, count: 3)
+
+    assert_equal wrong, questions.first
+    assert_equal Set.new([ first_correct.id, second_correct.id ]), Set.new(questions.drop(1).map(&:id))
+  end
+
+  test "uses the latest attempt when ranking priority" do
+    subscription = @builder.subscription
+    previously_wrong, still_wrong = @builder.past_quiz_with_questions(
+      subscription,
+      questions: [
+        { answered_correctly: false },
+        { answered_correctly: false }
+      ],
+      completed_at: 3.days.ago
+    )
+    @builder.reuse_question_in_quiz(
+      subscription,
+      previously_wrong,
+      answered_correctly: true,
+      completed_at: 1.day.ago
+    )
+
+    questions = ReviewQuestionPicker.call(subscription, count: 1)
+
+    assert_equal [ still_wrong ], questions
+  end
+
+  test "prefers a question whose latest attempt is wrong even if earlier attempt was correct" do
+    subscription = @builder.subscription
+    previously_correct, always_correct = @builder.past_quiz_with_questions(
+      subscription,
+      questions: [
+        { answered_correctly: true },
+        { answered_correctly: true }
+      ],
+      completed_at: 3.days.ago
+    )
+    @builder.reuse_question_in_quiz(
+      subscription,
+      previously_correct,
+      answered_correctly: false,
+      completed_at: 1.day.ago
+    )
+
+    questions = ReviewQuestionPicker.call(subscription, count: 1)
+
+    assert_equal [ previously_correct ], questions
+    refute_equal always_correct, questions.first
+  end
+
+  test "aggregates candidates across multiple completed quizzes" do
+    subscription = @builder.subscription
+    wrong, correct_from_first = @builder.past_quiz_with_questions(
+      subscription,
+      questions: [
+        { answered_correctly: false },
+        { answered_correctly: true }
+      ],
+      completed_at: 7.days.ago
+    )
+    correct_from_second = @builder.past_quiz_with_questions(
+      subscription,
+      questions: [ { answered_correctly: true } ],
+      completed_at: 1.day.ago
+    ).first
+
+    questions = ReviewQuestionPicker.call(subscription, count: 3)
+
+    assert_equal 3, questions.size
+    assert_equal wrong, questions.first
+    assert_equal Set.new([ correct_from_first.id, correct_from_second.id ]), Set.new(questions.drop(1).map(&:id))
+  end
+
+  test "returns a question only once when it appears in multiple completed quizzes" do
+    subscription = @builder.subscription
+    question = @builder.past_quiz_with_questions(
+      subscription,
+      questions: [ { answered_correctly: false } ],
+      completed_at: 3.days.ago
+    ).first
+    @builder.reuse_question_in_quiz(
+      subscription,
+      question,
+      answered_correctly: true,
+      completed_at: 1.day.ago
+    )
+
+    questions = ReviewQuestionPicker.call(subscription, count: 2)
+
+    assert_equal [ question ], questions
+  end
+
   test "only picks questions from the given subscription" do
     subscription = @builder.subscription
     other_subscription = @builder.subscription
@@ -174,5 +278,29 @@ class ReviewQuestionPickerTest < ActiveSupport::TestCase
 
     assert_equal available, questions
     refute_includes questions, skipped
+  end
+
+  test "returns no questions when count is zero" do
+    subscription = @builder.subscription
+    @builder.past_quiz_with_questions(
+      subscription,
+      questions: [ { answered_correctly: false } ]
+    )
+
+    questions = ReviewQuestionPicker.call(subscription, count: 0)
+
+    assert_empty questions
+  end
+
+  test "returns no questions when every candidate is excluded" do
+    subscription = @builder.subscription
+    only = @builder.past_quiz_with_questions(
+      subscription,
+      questions: [ { answered_correctly: false } ]
+    ).first
+
+    questions = ReviewQuestionPicker.call(subscription, count: 3, excluding: [ only.id ])
+
+    assert_empty questions
   end
 end

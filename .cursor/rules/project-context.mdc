@@ -8,6 +8,7 @@ alwaysApply: true
 Rails 8.1 full-stack app: **topic fitness tracker** for understanding. Users follow topics, read AI-generated digests, take MCQ quizzes, and track a 0–100 fitness score + streak over time. News/web content feeds fresh material into topics — this is NOT a daily headlines quiz app.
 
 **Full spec:** `docs/PRD.md`  
+**Architecture (high level):** `docs/ARCHITECTURE.md`  
 **Domain behaviour (plain English):** `docs/domains/`  
 **Tech debt & scaling:** `docs/TECH_DEBT.md`
 
@@ -36,7 +37,7 @@ Follow topic → Read digest → Take quiz → Fitness score up → Repeat
 
 ## Implementation status
 
-Phase 1 in progress. Domain models migrated; `FitnessScorer` and `ReviewQuestionPicker` implemented and tested. Auth and UI not yet built.
+Phase 1 in progress. Quiz pipeline services built (`ReviewQuestionPicker`, `QuizAssembler`, `FitnessScorer`). Auth, digest generation, and UI not yet built.
 
 ## When building
 
@@ -44,3 +45,4 @@ Phase 1 in progress. Domain models migrated; `FitnessScorer` and `ReviewQuestion
 2. Match existing Rails 8 stack (Solid Queue/Cache/Cable, Kamal, Propshaft)
 3. Keep web controllers and `api/v1/` controllers thin; delegate to services
 4. **Tech debt:** When you find a scaling issue, N+1, or deferred optimisation, add it to `docs/TECH_DEBT.md` in the same session — do not leave it only in chat or comments
+5. **Architecture doc:** When you add or ship a major component (service, job, API layer), update `docs/ARCHITECTURE.md` status tables and implementation section

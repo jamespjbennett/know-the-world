@@ -16,8 +16,8 @@ class FitnessScorerTest < ActiveSupport::TestCase
     @builder = FitnessScenarioBuilder.new
   end
 
-  test "returns zero score when subscription has no completed quizzes" do
-    subscription = @builder.subscription
+  test "returns zero score when subscription has no completed quizzes and no streak" do
+    subscription = @builder.subscription(streak_count: 0)
 
     result = FitnessScorer.call(subscription)
 
@@ -25,6 +25,31 @@ class FitnessScorerTest < ActiveSupport::TestCase
     assert_in_delta 0.0, result.accuracy, 0.01
     assert_in_delta 0.0, result.consistency, 0.01
     assert_in_delta 0.0, result.retention, 0.01
+  end
+
+  test "computes consistency from streak even when no quizzes are completed" do
+    subscription = @builder.subscription(cadence: :daily, streak_count: 3)
+
+    result = FitnessScorer.call(subscription)
+
+    assert_in_delta 0.0, result.accuracy, 0.01
+    assert_in_delta 0.0, result.retention, 0.01
+    assert_in_delta 42.86, result.consistency, 0.01
+    assert_in_delta 12.86, result.score, 0.01
+  end
+
+  test "ignores completed quizzes from other subscriptions" do
+    subscription = @builder.subscription
+    other = @builder.subscription
+    @builder.completed_quiz(subscription, score: 80, review: { correct: 2, total: 2 })
+    @builder.completed_quiz(other, score: 20, review: { correct: 0, total: 4 })
+
+    result = FitnessScorer.call(subscription)
+
+    assert_in_delta 80.0, result.accuracy, 0.01
+    assert_in_delta 100.0, result.retention, 0.01
+    # 80 accuracy (40) + 0 consistency + 100 retention (20) = 60
+    assert_in_delta 60.0, result.score, 0.01
   end
 
   test "computes accuracy from a single completed quiz score" do
@@ -71,6 +96,27 @@ class FitnessScorerTest < ActiveSupport::TestCase
     result = FitnessScorer.call(subscription)
 
     assert_in_delta 90.0, result.accuracy, 0.01
+  end
+
+  test "ignores pending quizzes when computing accuracy" do
+    subscription = @builder.subscription
+
+    @builder.incomplete_quiz(subscription, status: :pending, completed_at: 1.day.ago)
+    @builder.completed_quiz(subscription, score: 90)
+
+    result = FitnessScorer.call(subscription)
+
+    assert_in_delta 90.0, result.accuracy, 0.01
+  end
+
+  test "skips completed quizzes with nil score when computing accuracy" do
+    subscription = @builder.subscription
+    @builder.completed_quiz(subscription, score: nil, completed_at: 2.days.ago)
+    @builder.completed_quiz(subscription, score: 80, completed_at: 1.day.ago)
+
+    result = FitnessScorer.call(subscription)
+
+    assert_in_delta 80.0, result.accuracy, 0.01
   end
 
   test "computes daily consistency from streak relative to seven day target" do
@@ -229,9 +275,10 @@ class FitnessScorerTest < ActiveSupport::TestCase
 
     result = FitnessScorer.call(subscription)
 
-    assert result.score.between?(0, 100)
-    assert result.accuracy.between?(0, 100)
-    assert result.consistency.between?(0, 100)
-    assert result.retention.between?(0, 100)
+    # Perfect components: 100*0.5 + 100*0.3 + 100*0.2 = 100 (upper bound)
+    assert_in_delta 100.0, result.score, 0.01
+    assert_in_delta 100.0, result.accuracy, 0.01
+    assert_in_delta 100.0, result.consistency, 0.01
+    assert_in_delta 100.0, result.retention, 0.01
   end
 end

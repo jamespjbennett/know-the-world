@@ -52,9 +52,41 @@ class ReviewQuestionScenarioBuilder
         subscription: subscription,
         quiz: quiz,
         digest: digest,
-        answered_correctly: attributes.fetch(:answered_correctly)
+        answered_correctly: attributes.fetch(:answered_correctly),
+        attempted_at: completed_at
       )
     end
+  end
+
+  # Reuses an existing question on a new completed quiz (review path + distinct join).
+  def reuse_question_in_quiz(subscription, question, answered_correctly:, completed_at: Time.current)
+    digest = subscription.digests.create!(
+      published_on: completed_at.to_date,
+      status: :ready,
+      content: "Digest content",
+      sources: []
+    )
+
+    quiz = digest.create_quiz!(
+      status: :completed,
+      score: 0,
+      completed_at: completed_at
+    )
+
+    quiz.quiz_questions.create!(
+      question: question,
+      position: 1,
+      review: true
+    )
+
+    quiz.question_attempts.create!(
+      user: @user,
+      question: question,
+      selected_index: answered_correctly ? 0 : 1,
+      created_at: completed_at
+    )
+
+    question
   end
 
   private
@@ -63,7 +95,7 @@ class ReviewQuestionScenarioBuilder
     "review-picker-#{SecureRandom.hex(4)}@example.com"
   end
 
-  def create_question_with_attempt(subscription:, quiz:, digest:, answered_correctly:)
+  def create_question_with_attempt(subscription:, quiz:, digest:, answered_correctly:, attempted_at:)
     question = subscription.questions.create!(
       digest: digest,
       prompt: "Question #{Question.count + 1}?",
@@ -81,7 +113,8 @@ class ReviewQuestionScenarioBuilder
     quiz.question_attempts.create!(
       user: @user,
       question: question,
-      selected_index: answered_correctly ? 0 : 1
+      selected_index: answered_correctly ? 0 : 1,
+      created_at: attempted_at
     )
 
     question

@@ -16,7 +16,7 @@ class FitnessScorer
     private
 
     def recent_scores
-      completed_quizzes.last(QUIZ_LIMIT).map(&:score)
+      completed_quizzes.last(QUIZ_LIMIT).filter_map(&:score)
     end
 
     def completed_quizzes
