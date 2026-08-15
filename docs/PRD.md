@@ -209,7 +209,7 @@ Climate Tech, Artificial Intelligence, UK Politics, US Politics, Environment & S
 
 ## Open Questions
 
-- **LLM provider**: OpenAI vs Anthropic — abstract behind `Llm::Client`
-- **Search provider**: Brave Search vs Tavily
+- **LLM provider**: Anthropic (Haiku default) — decided
+- **Search provider**: Tavily — decided
 - **Weekly cadence day**: Default to subscription creation day-of-week
 - **Digest length**: Target ~500–800 words

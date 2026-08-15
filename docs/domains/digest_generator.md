@@ -1,8 +1,8 @@
 # Digest Generator
 
-> **Status:** Implemented (orchestration + query builder; real search/LLM HTTP adapters still planned).  
-> **Code:** `app/services/digest_generator.rb`, `app/services/digest_generator/`, `app/services/search/query_builder.rb`  
-> **Technical tests:** `test/services/digest_generator_test.rb`, `test/services/search/query_builder_test.rb`
+> **Status:** Implemented (Tavily search + Anthropic Haiku defaults; jobs still planned).  
+> **Code:** `app/services/digest_generator.rb`, `app/services/digest_generator/`, `app/services/search/`, `app/services/llm/`  
+> **Technical tests:** `test/services/digest_generator_test.rb`, `test/services/search/`, `test/services/llm/`
 
 ---
 
@@ -58,7 +58,7 @@ Search and LLM calls stay **outside** the transaction so a slow API doesn't hold
 |---|---|
 | Ready digest already exists for that day | Raises `AlreadyGenerated` — won't overwrite a finished briefing |
 | Search, LLM, or any other generation error | Digest marked **failed**, error re-raised — safe to retry later |
-| Default stub clients (no real adapter injected) | Raise a clear client error → digest marked **failed** (same retry path) |
+| Missing API keys | `ApiCredentials` raises `KeyError` before/during client use |
 
 ---
 
@@ -96,18 +96,29 @@ If search is down, the digest ends **failed**. The next job run resets that row 
 
 | Client | Role | Status |
 |---|---|---|
-| `Search::Client` | Web search | Interface stub — inject a real adapter (or test fake) |
-| `Llm::Client` | Digest synthesis + MCQ generation | Interface stub — inject a real adapter (or test fake) |
+| `Search::TavilyClient` | Web search (Tavily) | **Default** when no client injected |
+| `Llm::AnthropicClient` | Digest + MCQs (Claude Haiku) | **Default** when no client injected |
+| Test fakes | Same interfaces | Used in service tests |
 
-Live API keys and HTTP implementations are a follow-up; this service is fully testable with fakes. Calling without injected clients fails loudly and marks the digest failed — it does not hang in **generating**.
+**API keys** (never commit plaintext keys):
+
+```yaml
+# bin/rails credentials:edit
+anthropic:
+  api_key: sk-ant-...
+tavily:
+  api_key: tvly-...
+```
+
+Or set `ANTHROPIC_API_KEY` / `TAVILY_API_KEY` (ENV wins over credentials). Read via `ApiCredentials`.
 
 ---
 
 ## What it doesn't do (v1)
 
-- Call real search/LLM APIs (adapters not wired yet)
 - Enqueue itself (`GenerateDigestJob` / cron still planned)
 - Score quizzes or update fitness (that's [Record Quiz Completion](record_quiz_completion.md))
+- Switch LLM model without config change (default is Haiku; bump constant/credentials later if needed)
 
 ---
 

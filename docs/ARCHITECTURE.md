@@ -69,7 +69,7 @@ flowchart LR
 | Step | Component | Status |
 |---|---|---|
 | 1 | `GenerateDigestJob` — triggered on subscribe or daily cron | Planned |
-| 2 | `DigestGenerator` — search + LLM → briefing + new MCQs + save | **Built** (real HTTP adapters planned; failed/stuck digests are reset on retry) |
+| 2 | `DigestGenerator` — search + LLM → briefing + new MCQs + save | **Built** (failed/stuck digests reset on retry) |
 | 3 | `ReviewQuestionPicker` — ~30% review questions from bank | **Built** |
 | 4 | `QuizAssembler` — combine new + review into one quiz | **Built** |
 | 5 | Save to DB — `TopicDigest`, `Quiz`, `Question`, `QuizQuestion` | **Built** (via `DigestGenerator`) |
@@ -140,8 +140,10 @@ External adapters:
 
 | Adapter | Role | Status |
 |---|---|---|
-| `Search::Client` | Web search (Brave / Tavily) | Interface stub (inject real HTTP later) |
-| `Llm::Client` | Digest synthesis + MCQ generation | Interface stub (inject real HTTP later) |
+| `Search::TavilyClient` | Web search via Tavily | **Built** (default for `DigestGenerator`) |
+| `Llm::AnthropicClient` | Digest + MCQs via Claude Haiku | **Built** (default for `DigestGenerator`) |
+| `ApiCredentials` | ENV or Rails credentials for API keys | **Built** |
+| `Search::Client` / `Llm::Client` | Injectable interfaces / test fakes | **Built** |
 
 ---
 
@@ -217,10 +219,11 @@ Same services as the web UI — no duplicated business logic.
 - `ReviewQuestionPicker` + tests
 - `QuizAssembler` + tests
 - `RecordQuizCompletion` + tests
-- `DigestGenerator` + `Search::QueryBuilder` + tests (fakes for search/LLM)
+- `DigestGenerator` + `Search::QueryBuilder` + tests
+- `Search::TavilyClient` + `Llm::AnthropicClient` (Haiku) + `ApiCredentials`
 
 **Next**
-- Real `Search::Client` / `Llm::Client` HTTP adapters (+ API keys)
-- `GenerateDigestJob` / `DailyGenerationJob` → auth + UI
+- `GenerateDigestJob` / `DailyGenerationJob`
+- Auth + UI
 
 Update this section as major components land.
