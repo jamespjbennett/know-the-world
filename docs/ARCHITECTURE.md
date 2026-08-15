@@ -69,10 +69,10 @@ flowchart LR
 | Step | Component | Status |
 |---|---|---|
 | 1 | `GenerateDigestJob` — triggered on subscribe or daily cron | Planned |
-| 2 | `DigestGenerator` — search + LLM → briefing + new MCQs | Planned |
+| 2 | `DigestGenerator` — search + LLM → briefing + new MCQs + save | **Built** (real HTTP adapters planned) |
 | 3 | `ReviewQuestionPicker` — ~30% review questions from bank | **Built** |
 | 4 | `QuizAssembler` — combine new + review into one quiz | **Built** |
-| 5 | Save to DB — `TopicDigest`, `Quiz`, `Question`, `QuizQuestion` | Planned |
+| 5 | Save to DB — `TopicDigest`, `Quiz`, `Question`, `QuizQuestion` | **Built** (via `DigestGenerator`) |
 
 After the user completes a quiz:
 
@@ -132,15 +132,16 @@ Services are the heart of the app. Each has a single public entry point: `.call(
 | `FitnessScorer` | 0–100 score from accuracy, consistency, retention | [fitness_scorer.md](domains/fitness_scorer.md) | **Built** |
 | `ReviewQuestionPicker` | Pick review questions from completed quiz history | [review_question_picker.md](domains/review_question_picker.md) | **Built** |
 | `QuizAssembler` | Mix new + review questions (~70/30) | [quiz_assembler.md](domains/quiz_assembler.md) | **Built** |
-| `DigestGenerator` | Search + LLM → digest + new questions | — | Planned |
+| `DigestGenerator` | Search + LLM → digest + new questions + assembled quiz | [digest_generator.md](domains/digest_generator.md) | **Built** |
 | `RecordQuizCompletion` | Score quiz, persist fitness + snapshot | [record_quiz_completion.md](domains/record_quiz_completion.md) | **Built** |
+| `Search::QueryBuilder` | Topic + goal + level → search query string | [digest_generator.md](domains/digest_generator.md) | **Built** |
 
-External adapters (planned):
+External adapters:
 
-| Adapter | Role |
-|---|---|
-| `Search::Client` | Web search (Brave / Tavily) |
-| `Llm::Client` | Digest synthesis + MCQ generation |
+| Adapter | Role | Status |
+|---|---|---|
+| `Search::Client` | Web search (Brave / Tavily) | Interface stub (inject real HTTP later) |
+| `Llm::Client` | Digest synthesis + MCQ generation | Interface stub (inject real HTTP later) |
 
 ---
 
@@ -216,8 +217,10 @@ Same services as the web UI — no duplicated business logic.
 - `ReviewQuestionPicker` + tests
 - `QuizAssembler` + tests
 - `RecordQuizCompletion` + tests
+- `DigestGenerator` + `Search::QueryBuilder` + tests (fakes for search/LLM)
 
 **Next**
-- `DigestGenerator` → jobs → auth + UI
+- Real `Search::Client` / `Llm::Client` HTTP adapters (+ API keys)
+- `GenerateDigestJob` / `DailyGenerationJob` → auth + UI
 
 Update this section as major components land.

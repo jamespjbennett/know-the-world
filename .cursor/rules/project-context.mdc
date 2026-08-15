@@ -37,7 +37,7 @@ Follow topic → Read digest → Take quiz → Fitness score up → Repeat
 
 ## Implementation status
 
-Phase 1 in progress. Quiz pipeline complete (`QuizAssembler`, `ReviewQuestionPicker`, `FitnessScorer`, `RecordQuizCompletion`). Digest generation, jobs, auth, and UI not yet built.
+Phase 1 in progress. Quiz pipeline + `DigestGenerator` / `Search::QueryBuilder` complete (search/LLM clients are stubs — inject fakes or real HTTP). Jobs, real API adapters, auth, and UI not yet built.
 
 ## When building
 

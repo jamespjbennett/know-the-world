@@ -29,6 +29,7 @@ class ReviewQuestionScenarioBuilder
       topic: topic,
       goal: options.fetch(:goal, "Understand the topic deeply"),
       cadence: options.fetch(:cadence, :daily),
+      knowledge_level: options.fetch(:knowledge_level, :beginner),
       streak_count: options.fetch(:streak_count, 0)
     )
   end
