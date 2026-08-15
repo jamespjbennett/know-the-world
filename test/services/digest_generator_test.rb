@@ -26,8 +26,9 @@ require "test_helper"
 #   7. Mark digest ready and touch subscription last_activity_at
 #
 # Errors:
-#   DigestGenerator::AlreadyGenerated - digest already exists for published_on
-#   Search::Client::Error / Llm::Client::Error - digest marked failed, error re-raised
+#   DigestGenerator::AlreadyGenerated - ready digest already exists for published_on
+#   On failure: digest marked failed (including unexpected errors); safe to retry
+#   Failed/stuck digests for the same published_on are reset and regenerated
 #
 class DigestGeneratorTest < ActiveSupport::TestCase
   setup do
@@ -173,7 +174,7 @@ class DigestGeneratorTest < ActiveSupport::TestCase
     end
   end
 
-  test "raises AlreadyGenerated when digest exists for published_on" do
+  test "raises AlreadyGenerated when a ready digest exists for published_on" do
     subscription = @builder.subscription
     subscription.digests.create!(
       published_on: Date.current,
@@ -185,6 +186,35 @@ class DigestGeneratorTest < ActiveSupport::TestCase
     assert_raises(DigestGenerator::AlreadyGenerated) do
       @builder.generate(subscription, published_on: Date.current)
     end
+  end
+
+  test "retries successfully after a previous failed digest" do
+    subscription = @builder.subscription
+    search = FailingSearchClient.new
+
+    assert_raises(Search::Client::Error) do
+      @builder.generate(subscription, search_client: search)
+    end
+    assert subscription.digests.find_by!(published_on: Date.current).failed?
+
+    result = @builder.generate(subscription)
+
+    assert result.digest.ready?
+    assert_equal 1, subscription.digests.where(published_on: Date.current).count
+  end
+
+  test "reclaims a stuck generating digest on retry" do
+    subscription = @builder.subscription
+    subscription.digests.create!(
+      published_on: Date.current,
+      status: :generating,
+      sources: []
+    )
+
+    result = @builder.generate(subscription)
+
+    assert result.digest.ready?
+    assert_equal 1, subscription.digests.where(published_on: Date.current).count
   end
 
   test "marks digest failed and re-raises when search fails" do
@@ -224,6 +254,29 @@ class DigestGeneratorTest < ActiveSupport::TestCase
     assert_equal "question generation failed", error.message
     digest = subscription.digests.find_by!(published_on: Date.current)
     assert digest.failed?
+  end
+
+  test "marks digest failed when an unexpected error occurs during generation" do
+    subscription = @builder.subscription
+    llm = UnexpectedErrorLlmClient.new
+
+    assert_raises(RuntimeError) do
+      @builder.generate(subscription, llm_client: llm)
+    end
+
+    digest = subscription.digests.find_by!(published_on: Date.current)
+    assert digest.failed?
+  end
+
+  test "accepts string-keyed synthesis hashes from the llm" do
+    subscription = @builder.subscription
+    llm = StringKeyedLlmClient.new(content: "String-keyed briefing.")
+
+    result = @builder.generate(subscription, llm_client: llm)
+
+    assert result.digest.ready?
+    assert_equal "String-keyed briefing.", result.digest.content
+    assert_equal [{ "title" => "Wire", "url" => "https://example.com/wire" }], result.digest.sources
   end
 
   test "generated quiz can be completed via RecordQuizCompletion" do

@@ -138,7 +138,7 @@ It also drives behaviour we want:
 - It doesn't compare you to other users (no leaderboards)
 - It doesn't drop your score for missing a day — your streak might reset elsewhere, but consistency reflects your current streak length, not guilt-tripping
 - It doesn't score you for reading the digest — only for completing quizzes
-- It isn't fully wired into the app UI yet — the scoring logic is built and tested, but nothing updates your dashboard automatically after a quiz until we hook that up
+- It isn't fully wired into the app UI yet — [Record Quiz Completion](record_quiz_completion.md) persists score, streak, and snapshots after submit; the dashboard UI still needs to call that and show the results
 
 ---
 

@@ -32,11 +32,12 @@ Known issues we're deferring intentionally. Add new items here when you spot per
 
 | | |
 |---|---|
-| **Area** | `app/services/quiz_assembler.rb`, `DigestGenerator` (planned) |
+| **Area** | `app/services/quiz_assembler.rb`, `app/services/digest_generator.rb` |
 | **Severity** | Low |
 | **Added** | 2026-08-06 |
+| **Updated** | 2026-08-15 |
 
-**Problem:** When more new questions are generated than the quiz needs, `selected_new_questions` only takes the first N (`quiz_size - review_count`). Leftover new questions remain in the DB (linked to today's digest) but are not attached to the quiz via `QuizQuestion`. Behaviour is implicit: they sit in the question bank and may appear as review questions later. This is undocumented product behaviour — not a bug, but an unresolved design choice.
+**Problem:** `DigestGenerator` always requests `quiz_size` new questions from the LLM. When review slots are filled, `QuizAssembler#selected_new_questions` only takes the first N (`quiz_size - review_count`). Leftover new questions remain in the DB (linked to today's digest) but are not attached to the quiz via `QuizQuestion`. Behaviour is implicit: they sit in the question bank and may appear as review questions later. This is undocumented product behaviour in the UI sense — noted in [digest_generator.md](domains/digest_generator.md) — not a bug, but an unresolved design choice.
 
 **Example:** `quiz_size: 10`, 3 review slots filled from old bank → 7 new used, 3 newly generated questions discarded from today's quiz.
 
@@ -44,10 +45,10 @@ Known issues we're deferring intentionally. Add new items here when you spot per
 
 **Fix when ready:** Decide explicitly and implement one of:
 1. **Generate exactly what's needed** — `DigestGenerator` produces `new_count` only (simplest)
-2. **Keep surplus deliberately** — document in domain docs; optionally mark questions as `unused` vs `asked`
+2. **Keep surplus deliberately** — optionally mark questions as `unused` vs `asked`
 3. **Delete surplus** — remove questions not placed on the quiz (keeps bank clean; loses review fodder)
 
-**Related tests:** `test/services/quiz_assembler_test.rb`; future `DigestGenerator` tests when built.
+**Related tests:** `test/services/quiz_assembler_test.rb`, `test/services/digest_generator_test.rb`
 
 ---
 

@@ -16,9 +16,13 @@ class DigestGenerator
     end
 
     def attrs(payload)
-      payload
+      normalize(payload)
         .slice(:prompt, :options, :correct_index, :explanation)
         .merge(digest: @digest)
+    end
+
+    def normalize(payload)
+      payload.to_h.with_indifferent_access
     end
   end
 end

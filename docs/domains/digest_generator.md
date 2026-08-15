@@ -32,20 +32,50 @@ A `DigestGenerator::Result` with:
 
 Default quiz size is **10** (`DigestGenerator::DEFAULT_QUIZ_SIZE`).
 
+Today the generator asks the LLM for `quiz_size` new questions. When review slots are filled, some of those new questions may not land on the quiz (they stay in the bank for later review). See `docs/TECH_DEBT.md`.
+
 ---
 
 ## Flow
 
-1. Refuse if a digest already exists for that `published_on` (`AlreadyGenerated`)
-2. Create digest in **generating** status
-3. Build search query from topic name + goal + knowledge level (`Search::QueryBuilder`)
-4. Run web search via injected `search_client`
-5. LLM synthesizes digest content + sources via injected `llm_client`
-6. LLM generates `quiz_size` new MCQs from the digest content
-7. Persist questions; create pending quiz; [Quiz Assembler](quiz_assembler.md) mixes ~70% new / ~30% review
-8. Mark digest **ready** and touch subscription `last_activity_at`
+1. Look up an existing digest for that `published_on`:
+   - **ready** → raise `AlreadyGenerated` (already done for that day)
+   - **failed / generating / pending** → wipe the stuck attempt and reuse the row (so job retries work)
+   - **none** → create a new digest in **generating** status
+2. Build search query from topic name + goal + knowledge level (`Search::QueryBuilder`)
+3. Run web search via injected `search_client`
+4. LLM synthesizes digest content + sources via injected `llm_client`
+5. LLM generates `quiz_size` new MCQs from the digest content
+6. In one database transaction: save content/sources, persist questions, create pending quiz, [Quiz Assembler](quiz_assembler.md) mixes ~70% new / ~30% review, mark digest **ready**, touch `last_activity_at`
 
-On search or LLM failure: digest is marked **failed** and the error is re-raised.
+Search and LLM calls stay **outside** the transaction so a slow API doesn't hold DB locks.
+
+---
+
+## What can go wrong?
+
+| Situation | What happens |
+|---|---|
+| Ready digest already exists for that day | Raises `AlreadyGenerated` — won't overwrite a finished briefing |
+| Search, LLM, or any other generation error | Digest marked **failed**, error re-raised — safe to retry later |
+| Default stub clients (no real adapter injected) | Raise a clear client error → digest marked **failed** (same retry path) |
+
+---
+
+## LLM payload contract
+
+Adapters may return **symbol or string keys**. The generator normalizes both.
+
+**Synthesis** must include:
+
+| Key | Type | Meaning |
+|---|---|---|
+| `content` | string | Digest body shown to the user |
+| `sources` | array of hashes | Citations (e.g. `title`, `url`) — stored as JSON string keys |
+
+**Each generated question** must include: `prompt`, `options`, `correct_index`, `explanation`.
+
+Only those question fields are persisted (extra LLM keys are ignored).
 
 ---
 
@@ -58,6 +88,8 @@ You subscribe to Climate Tech (beginner, goal: “track policy”). Generator:
 - Creates 10 new questions (first digest → quiz is all new material)
 - Later digests pull ~3 review questions from your bank
 
+If search is down, the digest ends **failed**. The next job run resets that row and tries again.
+
 ---
 
 ## Dependencies (injected)
@@ -67,7 +99,7 @@ You subscribe to Climate Tech (beginner, goal: “track policy”). Generator:
 | `Search::Client` | Web search | Interface stub — inject a real adapter (or test fake) |
 | `Llm::Client` | Digest synthesis + MCQ generation | Interface stub — inject a real adapter (or test fake) |
 
-Live API keys and HTTP implementations are a follow-up; this service is fully testable with fakes.
+Live API keys and HTTP implementations are a follow-up; this service is fully testable with fakes. Calling without injected clients fails loudly and marks the digest failed — it does not hang in **generating**.
 
 ---
 
@@ -85,3 +117,4 @@ Live API keys and HTTP implementations are a follow-up; this service is fully te
 - [Quiz Assembler](quiz_assembler.md) — new + review mix
 - [Review Question Picker](review_question_picker.md) — which old questions return
 - [Product overview (PRD)](../PRD.md) — content pipeline requirements
+- [Tech debt](../TECH_DEBT.md) — surplus new questions when review fills slots

@@ -63,3 +63,37 @@ class FailingLlmQuestionsClient < Llm::Client
     raise Llm::Client::Error, @message
   end
 end
+
+class UnexpectedErrorLlmClient < Llm::Client
+  def synthesize(**)
+    raise "boom during synthesis"
+  end
+
+  def generate_questions(**)
+    raise NotImplementedError
+  end
+end
+
+class StringKeyedLlmClient < Llm::Client
+  def initialize(content: "String-keyed digest content.")
+    @content = content
+  end
+
+  def synthesize(**)
+    {
+      "content" => @content,
+      "sources" => [{ "title" => "Wire", "url" => "https://example.com/wire" }]
+    }
+  end
+
+  def generate_questions(subscription:, digest_content:, count:)
+    count.times.map do |index|
+      {
+        "prompt" => "String-keyed question #{index + 1}?",
+        "options" => ReviewQuestionScenarioBuilder::DEFAULT_OPTIONS,
+        "correct_index" => 0,
+        "explanation" => "Because."
+      }
+    end
+  end
+end

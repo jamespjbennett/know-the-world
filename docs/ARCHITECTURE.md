@@ -69,7 +69,7 @@ flowchart LR
 | Step | Component | Status |
 |---|---|---|
 | 1 | `GenerateDigestJob` — triggered on subscribe or daily cron | Planned |
-| 2 | `DigestGenerator` — search + LLM → briefing + new MCQs + save | **Built** (real HTTP adapters planned) |
+| 2 | `DigestGenerator` — search + LLM → briefing + new MCQs + save | **Built** (real HTTP adapters planned; failed/stuck digests are reset on retry) |
 | 3 | `ReviewQuestionPicker` — ~30% review questions from bank | **Built** |
 | 4 | `QuizAssembler` — combine new + review into one quiz | **Built** |
 | 5 | Save to DB — `TopicDigest`, `Quiz`, `Question`, `QuizQuestion` | **Built** (via `DigestGenerator`) |

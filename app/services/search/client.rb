@@ -3,7 +3,7 @@ module Search
     class Error < StandardError; end
 
     def search(query)
-      raise NotImplementedError
+      raise Error, "Search client not configured — inject a real adapter"
     end
   end
 end
